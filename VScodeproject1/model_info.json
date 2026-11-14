@@ -1,0 +1,168 @@
+{
+  "file": {
+    "model_file": "loan_svc_model.pkl",
+    "data_file": "trainsvc.csv",
+    "trained_at": "2026-11-14 18:26",
+    "sklearn_version": "1.7.2"
+  },
+  "features": {
+    "numeric": [
+      "ApplicantIncome",
+      "CoapplicantIncome",
+      "LoanAmount",
+      "Loan_Amount_Term",
+      "Dependents"
+    ],
+    "categorical": [
+      "Gender",
+      "Married",
+      "Education",
+      "Self_Employed",
+      "Credit_History",
+      "Property_Area"
+    ],
+    "after_encoding": [
+      "num__ApplicantIncome",
+      "num__CoapplicantIncome",
+      "num__LoanAmount",
+      "num__Loan_Amount_Term",
+      "num__Dependents",
+      "cat__Gender_Female",
+      "cat__Gender_Male",
+      "cat__Married_No",
+      "cat__Married_Yes",
+      "cat__Education_Graduate",
+      "cat__Education_Not Graduate",
+      "cat__Self_Employed_No",
+      "cat__Self_Employed_Yes",
+      "cat__Credit_History_0.0",
+      "cat__Credit_History_1.0",
+      "cat__Property_Area_Rural",
+      "cat__Property_Area_Semiurban",
+      "cat__Property_Area_Urban"
+    ]
+  },
+  "samples": {
+    "rows_total": 578,
+    "rows_train": 462,
+    "rows_test": 116,
+    "approved": 403,
+    "rejected": 175,
+    "examples": [
+      {
+        "Gender": "Male",
+        "Married": "Yes",
+        "Dependents": 1.0,
+        "Education": "Graduate",
+        "Self_Employed": "No",
+        "ApplicantIncome": 4583,
+        "CoapplicantIncome": 1508.0,
+        "LoanAmount": 128.0,
+        "Loan_Amount_Term": 360.0,
+        "Credit_History": 1.0,
+        "Property_Area": "Rural"
+      },
+      {
+        "Gender": "Male",
+        "Married": "Yes",
+        "Dependents": 0.0,
+        "Education": "Graduate",
+        "Self_Employed": "Yes",
+        "ApplicantIncome": 3000,
+        "CoapplicantIncome": 0.0,
+        "LoanAmount": 66.0,
+        "Loan_Amount_Term": 360.0,
+        "Credit_History": 1.0,
+        "Property_Area": "Urban"
+      },
+      {
+        "Gender": "Male",
+        "Married": "Yes",
+        "Dependents": 0.0,
+        "Education": "Not Graduate",
+        "Self_Employed": "No",
+        "ApplicantIncome": 2583,
+        "CoapplicantIncome": 2358.0,
+        "LoanAmount": 120.0,
+        "Loan_Amount_Term": 360.0,
+        "Credit_History": 1.0,
+        "Property_Area": "Urban"
+      },
+      {
+        "Gender": "Male",
+        "Married": "No",
+        "Dependents": 0.0,
+        "Education": "Graduate",
+        "Self_Employed": "No",
+        "ApplicantIncome": 6000,
+        "CoapplicantIncome": 0.0,
+        "LoanAmount": 141.0,
+        "Loan_Amount_Term": 360.0,
+        "Credit_History": 1.0,
+        "Property_Area": "Urban"
+      },
+      {
+        "Gender": "Male",
+        "Married": "Yes",
+        "Dependents": 2.0,
+        "Education": "Graduate",
+        "Self_Employed": "Yes",
+        "ApplicantIncome": 5417,
+        "CoapplicantIncome": 4196.0,
+        "LoanAmount": 267.0,
+        "Loan_Amount_Term": 360.0,
+        "Credit_History": 1.0,
+        "Property_Area": "Urban"
+      }
+    ]
+  },
+  "function": {
+    "algorithm": "SVC",
+    "kernel": "rbf",
+    "C": 1.0,
+    "gamma": "scale",
+    "intercept": 0.24645760168437225,
+    "support_vectors_total": 261,
+    "support_vectors_per_class": {
+      "rejected": 108,
+      "approved": 153
+    }
+  },
+  "margin": {
+    "explanation": "decision_function = signed distance from the boundary; |value| < 1 means the sample is inside the margin",
+    "min_score": -1.342,
+    "max_score": 1.147,
+    "mean_abs_score": 0.908,
+    "test_samples_inside_margin": 63
+  },
+  "accuracy": {
+    "test_accuracy": 0.776,
+    "report": {
+      "Rejected": {
+        "precision": 0.7368421052631579,
+        "recall": 0.4,
+        "f1-score": 0.5185185185185185,
+        "support": 35.0
+      },
+      "Approved": {
+        "precision": 0.7835051546391752,
+        "recall": 0.9382716049382716,
+        "f1-score": 0.8539325842696629,
+        "support": 81.0
+      },
+      "accuracy": 0.7758620689655172,
+      "macro avg": {
+        "precision": 0.7601736299511666,
+        "recall": 0.6691358024691358,
+        "f1-score": 0.6862255513940907,
+        "support": 116.0
+      },
+      "weighted avg": {
+        "precision": 0.7694257862929631,
+        "recall": 0.7758620689655172,
+        "f1-score": 0.7527300644309556,
+        "support": 116.0
+      }
+    }
+  }
+}

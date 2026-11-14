@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loan Model Results</title>
+<link rel="stylesheet" href="/assets/style.css">
+<style>
+  /* Confusion matrix */
+  .cm { display: grid; grid-template-columns: auto 1fr 1fr; gap: 3px; }
+  .cm .hdr { font-size: 12px; color: var(--muted); display: flex; align-items: center; justify-content: center; padding: 4px 8px; text-align: center; }
+  .cm .rowhdr { justify-content: flex-end; text-align: right; }
+  .cm .cell { aspect-ratio: 1.6 / 1; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: default; transition: transform .15s; }
+  .cm .cell:hover { transform: scale(1.03); }
+  .cm .cell .n { font-size: 30px; font-weight: 750; line-height: 1; }
+  .cm .cell .t { font-size: 12px; margin-top: 5px; font-weight: 600; }
+
+  /* Grouped bars */
+  .bars { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 16px 12px; align-items: center; }
+  .bars .metric { font-size: 13px; color: var(--ink-2); font-weight: 600; }
+  .bar-pair { display: flex; flex-direction: column; gap: 3px; }
+  .bar-track { position: relative; height: 18px; }
+  .bar { height: 100%; border-radius: 0 6px 6px 0; transition: opacity .15s; }
+  .bar-val { position: absolute; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; padding-left: 6px; }
+  .bar-track:hover .bar { opacity: .8; }
+  .axis-x { grid-column: 2; display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); border-top: 1px solid var(--axis); padding-top: 4px; font-variant-numeric: tabular-nums; }
+
+  /* Stacked bars */
+  .stack { display: flex; gap: 2px; height: 30px; border-radius: 8px; overflow: hidden; }
+  .stack > div { height: 100%; min-width: 4px; transition: opacity .15s; }
+  .stack:hover > div { opacity: .55; } .stack > div:hover { opacity: 1; }
+  .stack-row + .stack-row { margin-top: 20px; }
+  .stack-head { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-2); margin-bottom: 6px; font-weight: 600; }
+  .stack-head b { color: var(--ink); }
+
+  /* Key/value + chips */
+  dl.kv { display: grid; grid-template-columns: auto 1fr; gap: 10px 16px; margin: 0; font-size: 14px; }
+  dl.kv dt { color: var(--muted); }
+  dl.kv dd { margin: 0; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { font-size: 13px; font-weight: 600; padding: 5px 12px; border-radius: 999px; }
+  .chip.num { background: color-mix(in srgb, var(--violet) 13%, transparent); color: var(--violet); }
+  .chip.cat { background: color-mix(in srgb, var(--aqua) 15%, transparent); color: var(--aqua); }
+  .chip-group + .chip-group { margin-top: 16px; }
+  .chip-group h3 { font-size: 12px; font-weight: 650; color: var(--muted); margin: 0 0 8px; text-transform: uppercase; letter-spacing: .06em; }
+
+  /* CTA */
+  .cta { background: var(--hero); color: #fff; border: 0; display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
+  .cta h2 { font-size: 20px; }
+  .cta p { margin: 4px 0 0; opacity: .9; font-size: 14px; }
+  .cta a { background: #fff; color: #4b2fc9; text-decoration: none; font-weight: 700; padding: 12px 22px; border-radius: 12px; white-space: nowrap; }
+  .cta a:hover { filter: brightness(.95); }
+</style>
+</head>
+<body>
+<nav class="nav"><div class="nav-inner">
+  <a class="brand" href="/"><span class="brand-logo">◆</span><span>Loan SVC</span></a>
+  <div class="tabs"><a class="tab active" href="/">Results</a><a class="tab" href="/predict">Predict</a></div>
+  <button class="icon-btn" id="theme-btn" title="Toggle light / dark" aria-label="Toggle light or dark theme">◐</button>
+</div></nav>
+
+<section class="hero"><div class="hero-inner">
+  <p class="eyebrow">Course project · Model results</p>
+  <h1>How good is our loan approval model?</h1>
+  <p class="lead" id="lead">Loading results from the API…</p>
+  <div class="chips-row">
+    <span class="hchip" id="status"><span class="dot"></span><span>Connecting…</span></span>
+    <span class="hchip" id="chip-model">SVC</span>
+    <span class="hchip" id="chip-date">–</span>
+  </div>
+</div></section>
+
+<main>
+  <div class="grid">
+    <section class="card stat span-3" style="--c: var(--violet)">
+      <div class="top"><span class="label">Test accuracy</span><span class="badge">◎</span></div>
+      <div class="value" id="s-acc">–</div>
+      <div class="meter"><span id="s-acc-bar" style="width:0"></span></div>
+      <div class="note" id="s-acc-note">&nbsp;</div>
+    </section>
+    <section class="card stat span-3" style="--c: var(--aqua)">
+      <div class="top"><span class="label">Macro F1 score</span><span class="badge">≋</span></div>
+      <div class="value" id="s-f1">–</div>
+      <div class="meter"><span id="s-f1-bar" style="width:0"></span></div>
+      <div class="note">Average of both classes</div>
+    </section>
+    <section class="card stat span-3" style="--c: var(--pink)">
+      <div class="top"><span class="label">Support vectors</span><span class="badge">✦</span></div>
+      <div class="value" id="s-sv">–</div>
+      <div class="note" id="s-sv-note">&nbsp;</div>
+    </section>
+    <section class="card stat span-3" style="--c: var(--amber)">
+      <div class="top"><span class="label">Inside the margin</span><span class="badge">⇔</span></div>
+      <div class="value" id="s-in">–</div>
+      <div class="note">Test predictions with |score| &lt; 1</div>
+    </section>
+
+    <section class="card span-5">
+      <div class="card-head"><div class="card-icon ic-blue">▦</div><div><h2>Confusion matrix</h2><p class="desc">Test-set predictions vs. real outcomes</p></div></div>
+      <div class="cm" id="cm"></div>
+      <div class="legend" id="cm-legend"></div>
+    </section>
+
+    <section class="card span-7">
+      <div class="card-head"><div class="card-icon ic-violet">▤</div><div><h2>Precision, recall &amp; F1</h2><p class="desc">Great at spotting approvals, weaker at catching rejections</p></div></div>
+      <div class="bars" id="metric-bars"></div>
+      <div class="legend">
+        <span><i style="background:var(--approved)"></i>Approved</span>
+        <span><i style="background:var(--rejected)"></i>Rejected</span>
+      </div>
+    </section>
+
+    <section class="card span-12">
+      <div class="card-head"><div class="card-icon ic-pink">⟷</div><div><h2>Decision function &amp; margin</h2><p class="desc">Signed distance from the boundary. Between −1 and 1 is the margin, where the model is least sure.</p></div></div>
+      <div id="margin-chart"></div>
+    </section>
+
+    <section class="card span-6">
+      <div class="card-head"><div class="card-icon ic-aqua">◔</div><div><h2>Dataset</h2><p class="desc" id="data-desc">&nbsp;</p></div></div>
+      <div id="data-stacks"></div>
+    </section>
+
+    <section class="card span-6">
+      <div class="card-head"><div class="card-icon ic-amber">⚙</div><div><h2>Model parameters</h2><p class="desc">RBF-kernel SVM in a preprocessing pipeline</p></div></div>
+      <dl class="kv" id="params"></dl>
+      <div id="sv-stack" style="margin-top:20px"></div>
+    </section>
+
+    <section class="card span-12">
+      <div class="card-head"><div class="card-icon ic-violet">☰</div><div><h2>Features</h2><p class="desc" id="feat-desc">&nbsp;</p></div></div>
+      <div id="features"></div>
+    </section>
+
+    <section class="card span-12">
+      <div class="card-head"><div class="card-icon ic-blue">▥</div><div><h2>Classification report</h2><p class="desc">Full metrics from scikit-learn</p></div></div>
+      <div class="table-wrap"><table id="report"></table></div>
+    </section>
+
+    <section class="card cta span-12">
+      <div><h2>Try the model yourself</h2><p>Enter an applicant's details and see whether the loan would be approved.</p></div>
+      <a href="/predict">Open predictor →</a>
+    </section>
+  </div>
+  <footer id="footer">&nbsp;</footer>
+</main>
+
+<script src="/assets/common.js"></script>
+<script>
+function stackedBar(title, parts, total) {
+  const row = document.createElement("div");
+  row.className = "stack-row";
+  row.innerHTML = `<div class="stack-head"><span>${esc(title)}</span><b>${total.toLocaleString()}</b></div><div class="stack"></div><div class="legend"></div>`;
+  const stack = row.querySelector(".stack"), legend = row.querySelector(".legend");
+  parts.forEach(p => {
+    const seg = document.createElement("div");
+    seg.style.flex = p.value; seg.style.background = p.color;
+    bindTip(seg, `<b>${esc(p.label)}</b><br>${p.value.toLocaleString()} · ${pct(p.value / total)}`);
+    stack.appendChild(seg);
+    legend.insertAdjacentHTML("beforeend",
+      `<span><i style="background:${p.color}"></i>${esc(p.label)} <b style="color:var(--ink)">${p.value.toLocaleString()}</b> (${pct(p.value / total, 0)})</span>`);
+  });
+  return row;
+}
+
+function renderConfusion(rep) {
+  const rs = rep.Rejected, ap = rep.Approved;
+  const tn = Math.round(rs.recall * rs.support), fp = rs.support - tn;
+  const tp = Math.round(ap.recall * ap.support), fn = ap.support - tp;
+  const max = Math.max(tn, fp, tp, fn);
+  const ramp = ["--seq-100","--seq-200","--seq-300","--seq-400","--seq-500","--seq-600","--seq-700"];
+  const make = (n, actual, pred) => {
+    const idx = Math.min(6, Math.round((n / max) * 6));
+    return { n, actual, pred, ok: actual === pred, bg: `var(${ramp[idx]})`, fg: idx >= 3 ? "#fff" : "#0d366b" };
+  };
+  const rows = [[make(tn,"Rejected","Rejected"), make(fp,"Rejected","Approved")],
+                [make(fn,"Approved","Rejected"), make(tp,"Approved","Approved")]];
+  const cm = $("cm");
+  cm.innerHTML = `<div></div><div class="hdr">Predicted<br>Rejected</div><div class="hdr">Predicted<br>Approved</div>`;
+  rows.forEach((row, i) => {
+    cm.insertAdjacentHTML("beforeend", `<div class="hdr rowhdr">Actually<br>${i ? "Approved" : "Rejected"}</div>`);
+    row.forEach(c => {
+      const el = document.createElement("div");
+      el.className = "cell"; el.style.background = c.bg; el.style.color = c.fg;
+      el.innerHTML = `<span class="n">${c.n}</span><span class="t">${c.ok ? "✓ correct" : "✗ wrong"}</span>`;
+      const tot = c.actual === "Rejected" ? rs.support : ap.support;
+      bindTip(el, `<b>Actual ${c.actual} → predicted ${c.pred}</b><br>${c.n} of ${tot} applicants (${pct(c.n / tot)})`);
+      cm.appendChild(el);
+    });
+  });
+  $("cm-legend").innerHTML = `<span><b style="color:var(--ink)">${tn + tp}</b> of ${tn + fp + fn + tp} correct · darker blue = more applicants</span>`;
+}
+
+function renderMetricBars(rep) {
+  const metrics = [["precision","Precision"],["recall","Recall"],["f1-score","F1 score"]];
+  const classes = [["Approved","var(--approved)"],["Rejected","var(--rejected)"]];
+  const box = $("metric-bars"); box.innerHTML = "";
+  metrics.forEach(([key, name]) => {
+    box.insertAdjacentHTML("beforeend", `<div class="metric">${name}</div>`);
+    const pair = document.createElement("div"); pair.className = "bar-pair";
+    classes.forEach(([cls, color]) => {
+      const v = rep[cls][key];
+      const t = document.createElement("div"); t.className = "bar-track";
+      t.innerHTML = `<div class="bar" style="width:${v * 100}%;background:${color}"></div><span class="bar-val" style="left:${v * 100}%">${v.toFixed(2)}</span>`;
+      if (v > 0.88) { const l = t.querySelector(".bar-val"); l.style.left = "auto"; l.style.right = (100 - v * 100) + "%"; l.style.paddingRight = "6px"; l.style.color = "#fff"; }
+      bindTip(t, `<b>${cls} · ${name}</b><br>${v.toFixed(3)} (${pct(v)})`);
+      pair.appendChild(t);
+    });
+    box.appendChild(pair);
+  });
+  box.insertAdjacentHTML("beforeend", `<div class="axis-x"><span>0</span><span>0.25</span><span>0.5</span><span>0.75</span><span>1</span></div>`);
+}
+
+function drawMargin() {
+  const m = window.__info.margin;
+  const host = $("margin-chart");
+  const W = Math.max(280, host.clientWidth), H = 150, padL = 16, padR = 16, axisY = 96;
+  const lo = Math.min(-2, m.min_score - .25), hi = Math.max(2, m.max_score + .25);
+  const x = v => padL + (v - lo) / (hi - lo) * (W - padL - padR);
+  const ink = css("--ink"), ink2 = css("--ink-2"), muted = css("--muted"), axis = css("--axis");
+  const appr = css("--approved"), rej = css("--rejected"), band = css("--band"), violet = css("--violet");
+  const small = W < 560;
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Decision score axis with the margin from -1 to 1 and the range of test scores">`;
+  s += `<defs><linearGradient id="rg" x1="0" x2="1"><stop offset="0" stop-color="${rej}"/><stop offset="1" stop-color="${appr}"/></linearGradient></defs>`;
+  s += `<rect x="${x(-1)}" y="22" width="${x(1) - x(-1)}" height="${axisY - 22}" fill="${band}" rx="10"/>`;
+  s += `<text x="${(x(-1) + x(1)) / 2}" y="40" text-anchor="middle" font-size="12" font-weight="600" fill="${violet}">${small ? "margin" : `margin · ${m.test_samples_inside_margin} test samples inside`}</text>`;
+  s += `<text x="${x(-1) - 8}" y="40" text-anchor="end" font-size="12" font-weight="700" fill="${rej}">${small ? "← Reject" : "← Rejected side"}</text>`;
+  s += `<text x="${x(1) + 8}" y="40" font-size="12" font-weight="700" fill="${appr}">${small ? "Approve →" : "Approved side →"}</text>`;
+  s += `<line x1="${x(m.min_score)}" x2="${x(0)}" y1="70" y2="70" stroke="${rej}" stroke-width="8" stroke-linecap="round"/>`;
+  s += `<line x1="${x(0)}" x2="${x(m.max_score)}" y1="70" y2="70" stroke="${appr}" stroke-width="8" stroke-linecap="round"/>`;
+  s += `<text x="${x(m.min_score)}" y="60" text-anchor="middle" font-size="11" fill="${muted}">min ${m.min_score}</text>`;
+  s += `<text x="${x(m.max_score)}" y="60" text-anchor="middle" font-size="11" fill="${muted}">max ${m.max_score}</text>`;
+  s += `<line x1="${x(0)}" x2="${x(0)}" y1="48" y2="${axisY}" stroke="${ink}" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  s += `<text x="${x(0)}" y="14" text-anchor="middle" font-size="11" font-weight="600" fill="${ink2}">boundary (0)</text>`;
+  s += `<line x1="${x(0)}" x2="${x(0)}" y1="18" y2="24" stroke="${ink2}" stroke-width="1.5"/>`;
+  s += `<line x1="${padL}" x2="${W - padR}" y1="${axisY}" y2="${axisY}" stroke="${axis}"/>`;
+  for (let t = Math.ceil(lo); t <= Math.floor(hi); t++) {
+    s += `<line x1="${x(t)}" x2="${x(t)}" y1="${axisY}" y2="${axisY + 5}" stroke="${axis}"/>`;
+    s += `<text x="${x(t)}" y="${axisY + 19}" text-anchor="middle" font-size="11" fill="${muted}">${t > 0 ? "+" + t : t}</text>`;
+  }
+  s += `<text x="${W / 2}" y="${axisY + 42}" text-anchor="middle" font-size="11" fill="${muted}">decision score · bars show the range of test-set scores · mean |score| ${m.mean_abs_score}</text></svg>`;
+  host.innerHTML = s;
+  const svg = host.querySelector("svg");
+  svg.addEventListener("pointermove", e => {
+    const v = lo + (e.clientX - svg.getBoundingClientRect().left - padL) / (W - padL - padR) * (hi - lo);
+    showTip(e, `<b>score ${v >= 0 ? "+" : ""}${v.toFixed(2)}</b><br>${v >= 0 ? "Approved" : "Rejected"} side, ${Math.abs(v) < 1 ? "inside" : "outside"} the margin`);
+  });
+  svg.addEventListener("pointerleave", hideTip);
+}
+
+function render(info) {
+  window.__info = info;
+  const { file, features, samples, function: fn, margin, accuracy } = info;
+  const rep = accuracy.report;
+
+  $("lead").textContent = `An RBF-kernel support vector machine trained on ${samples.rows_total} loan applications. It correctly predicts ${pct(accuracy.test_accuracy, 0)} of unseen test cases.`;
+  $("chip-model").textContent = `${fn.algorithm} · ${fn.kernel.toUpperCase()} kernel`;
+  $("chip-date").textContent = `Trained ${file.trained_at}`;
+
+  $("s-acc").textContent = pct(accuracy.test_accuracy);
+  $("s-acc-bar").style.width = pct(accuracy.test_accuracy);
+  $("s-acc-note").textContent = `${Math.round(accuracy.test_accuracy * samples.rows_test)} of ${samples.rows_test} test applicants`;
+  const mf1 = rep["macro avg"]["f1-score"];
+  $("s-f1").textContent = mf1.toFixed(2);
+  $("s-f1-bar").style.width = pct(mf1);
+  $("s-sv").textContent = fn.support_vectors_total;
+  $("s-sv-note").textContent = `${pct(fn.support_vectors_total / samples.rows_train, 0)} of the ${samples.rows_train} training rows`;
+  $("s-in").innerHTML = `${margin.test_samples_inside_margin}<small>/ ${samples.rows_test}</small>`;
+
+  renderConfusion(rep);
+  renderMetricBars(rep);
+  drawMargin();
+
+  $("data-desc").textContent = `${samples.rows_total} applicants from ${file.data_file}`;
+  const ds = $("data-stacks"); ds.innerHTML = "";
+  ds.appendChild(stackedBar("Loan outcome", [
+    { label: "Approved", value: samples.approved, color: "var(--approved)" },
+    { label: "Rejected", value: samples.rejected, color: "var(--rejected)" }], samples.rows_total));
+  ds.appendChild(stackedBar("Train / test split", [
+    { label: "Training", value: samples.rows_train, color: "var(--violet)" },
+    { label: "Test", value: samples.rows_test, color: "var(--aqua)" }], samples.rows_total));
+
+  const p = { Algorithm: fn.algorithm, Kernel: fn.kernel, "C (regularisation)": fn.C, Gamma: fn.gamma,
+              Intercept: fn.intercept.toFixed(4), "scikit-learn": file.sklearn_version };
+  $("params").innerHTML = Object.entries(p).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("");
+  const sv = fn.support_vectors_per_class, svs = $("sv-stack"); svs.innerHTML = "";
+  svs.appendChild(stackedBar("Support vectors per class", [
+    { label: "Approved", value: sv.approved, color: "var(--approved)" },
+    { label: "Rejected", value: sv.rejected, color: "var(--rejected)" }], fn.support_vectors_total));
+
+  $("feat-desc").textContent = `${features.numeric.length + features.categorical.length} inputs, expanded to ${features.after_encoding.length} columns after scaling and one-hot encoding`;
+  const chips = (arr, cls) => `<div class="chips">${arr.map(f => `<span class="chip ${cls}">${esc(f.replace(/_/g, " "))}</span>`).join("")}</div>`;
+  $("features").innerHTML =
+    `<div class="chip-group"><h3>Numeric · median-imputed &amp; standardised</h3>${chips(features.numeric, "num")}</div>` +
+    `<div class="chip-group"><h3>Categorical · one-hot encoded</h3>${chips(features.categorical, "cat")}</div>`;
+
+  const rows = Object.entries(rep).filter(([k]) => k !== "accuracy");
+  $("report").innerHTML =
+    `<thead><tr><th>Class</th><th class="num">Precision</th><th class="num">Recall</th><th class="num">F1</th><th class="num">Support</th></tr></thead><tbody>` +
+    rows.map(([k, r]) => `<tr><td><b>${esc(k)}</b></td><td class="num">${r.precision.toFixed(3)}</td><td class="num">${r.recall.toFixed(3)}</td><td class="num">${r["f1-score"].toFixed(3)}</td><td class="num">${r.support}</td></tr>`).join("") +
+    `<tr><td><b>Accuracy</b></td><td></td><td></td><td class="num"><b>${rep.accuracy.toFixed(3)}</b></td><td class="num">${rep["macro avg"].support}</td></tr></tbody>`;
+
+  $("footer").innerHTML = `Model <code>${esc(file.model_file)}</code> · data <code>${esc(file.data_file)}</code> · served by Flask from <code>/api/info</code>`;
+}
+
+fetch("/api/info")
+  .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+  .then(info => { setStatus(true, "API connected"); render(info); })
+  .catch(err => {
+    setStatus(false, "API offline");
+    $("lead").innerHTML = `Could not load <code>/api/info</code> (${esc(err.message)}). Start the server with <code>python app.py</code>.`;
+  });
+
+themeListeners.push(() => window.__info && drawMargin());
+let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => window.__info && drawMargin(), 120); });
+</script>
+</body>
+</html>

@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loan Approval Predictor</title>
+<link rel="stylesheet" href="/assets/style.css">
+<style>
+  .fieldset + .fieldset { margin-top: 22px; padding-top: 20px; border-top: 1px dashed var(--grid); }
+  .fs-title { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 12px; }
+  .fs-title i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); display: inline-block; }
+  .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; }
+  .field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--ink-2); font-weight: 600; min-width: 0; }
+  .field input {
+    font: inherit; font-weight: 500; font-size: 15px; color: var(--ink); background: var(--surface-2);
+    border: 1.5px solid transparent; border-radius: 10px; padding: 10px 12px; min-width: 0; width: 100%;
+  }
+  .field input:focus { outline: none; border-color: var(--violet); background: var(--surface); }
+  .seg { display: flex; gap: 4px; background: var(--surface-2); padding: 4px; border-radius: 11px; }
+  .seg label { flex: 1; position: relative; }
+  .seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .seg span { display: block; text-align: center; padding: 7px 6px; border-radius: 8px; font-size: 13.5px; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+  .seg input:checked + span { background: var(--surface); color: var(--c, var(--violet)); box-shadow: 0 1px 4px rgba(40,30,110,.15); }
+  .seg input:focus-visible + span { outline: 2px solid var(--violet); }
+  .actions { display: flex; gap: 10px; margin-top: 24px; flex-wrap: wrap; }
+
+  /* Result */
+  .result-card { position: sticky; top: 76px; padding: 0; overflow: hidden; }
+  .result-top { padding: 26px 22px 22px; color: #fff; background: var(--hero); transition: background .4s; text-align: center; }
+  .result-top.approved { background: linear-gradient(135deg, #1c5cab, #2a78d6 55%, #1baf7a); }
+  .result-top.rejected { background: linear-gradient(135deg, #b5401a, #eb6834 55%, #e87ba4); }
+  .result-top .kicker { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; opacity: .85; }
+  .result-top .verdict { font-size: 40px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; margin-top: 4px; }
+  .result-top .icon { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,.2); display: grid; place-items: center; font-size: 30px; margin: 0 auto 12px; border: 2px solid rgba(255,255,255,.4); }
+  .result-body { padding: 18px 22px 22px; }
+  .gauge-wrap { display: flex; justify-content: center; }
+  .confidence { display: flex; align-items: center; gap: 10px; background: var(--surface-2); border-radius: 12px; padding: 12px 14px; font-size: 14px; color: var(--ink-2); margin-top: 6px; }
+  .confidence .lvl { font-weight: 700; color: var(--ink); }
+  .conf-dots { display: flex; gap: 4px; flex: none; }
+  .conf-dots i { width: 10px; height: 10px; border-radius: 3px; background: var(--grid); }
+  .conf-dots i.on { background: var(--c); }
+  .placeholder { text-align: center; color: var(--muted); font-size: 14px; padding: 8px 0 4px; }
+
+  /* Examples */
+  .examples { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  .ex { text-align: left; font: inherit; color: var(--ink); background: var(--surface-2); border: 1.5px solid transparent; border-radius: 14px; padding: 14px; cursor: pointer; transition: transform .15s, border-color .15s; }
+  .ex:hover { transform: translateY(-2px); border-color: var(--c); }
+  .ex .ex-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .ex .av { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 700; background: var(--c); flex: none; }
+  .ex .name { font-weight: 700; font-size: 14px; }
+  .ex .meta { font-size: 12.5px; color: var(--muted); }
+  .ex .money { font-size: 13px; color: var(--ink-2); }
+
+  /* History */
+  .history { list-style: none; margin: 0; padding: 0; }
+  .history li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--grid); font-size: 13.5px; }
+  .history li:last-child { border-bottom: 0; }
+  .history .pill { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; color: #fff; flex: none; }
+  .history .desc2 { color: var(--ink-2); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .history .sc { font-variant-numeric: tabular-nums; color: var(--muted); flex: none; }
+  .empty { color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<nav class="nav"><div class="nav-inner">
+  <a class="brand" href="/"><span class="brand-logo">◆</span><span>Loan SVC</span></a>
+  <div class="tabs"><a class="tab" href="/">Results</a><a class="tab active" href="/predict">Predict</a></div>
+  <button class="icon-btn" id="theme-btn" title="Toggle light / dark" aria-label="Toggle light or dark theme">◐</button>
+</div></nav>
+
+<section class="hero"><div class="hero-inner">
+  <p class="eyebrow">Course project · Live prediction</p>
+  <h1>Will this loan be approved?</h1>
+  <p class="lead">Enter an applicant's details. The trained SVM model will decide and show how sure it is.</p>
+  <div class="chips-row"><span class="hchip" id="status"><span class="dot"></span><span>Connecting…</span></span></div>
+</div></section>
+
+<main>
+  <div class="grid">
+    <section class="card span-7">
+      <div class="card-head"><div class="card-icon ic-violet">✎</div><div><h2>Applicant details</h2><p class="desc">Every field feeds the model's preprocessing pipeline</p></div></div>
+      <form id="form">
+        <div class="fieldset" style="--c: var(--violet)">
+          <p class="fs-title"><i></i>Personal</p>
+          <div class="fields">
+            <div class="field">Gender<div class="seg"><label><input type="radio" name="Gender" value="Male" checked><span>Male</span></label><label><input type="radio" name="Gender" value="Female"><span>Female</span></label></div></div>
+            <div class="field">Married<div class="seg"><label><input type="radio" name="Married" value="Yes" checked><span>Yes</span></label><label><input type="radio" name="Married" value="No"><span>No</span></label></div></div>
+            <div class="field">Education<div class="seg"><label><input type="radio" name="Education" value="Graduate" checked><span>Graduate</span></label><label><input type="radio" name="Education" value="Not Graduate"><span>Not grad.</span></label></div></div>
+            <div class="field">Self employed<div class="seg"><label><input type="radio" name="Self_Employed" value="No" checked><span>No</span></label><label><input type="radio" name="Self_Employed" value="Yes"><span>Yes</span></label></div></div>
+            <label class="field">Dependents<input name="Dependents" type="number" min="0" step="1" value="0"></label>
+          </div>
+        </div>
+        <div class="fieldset" style="--c: var(--aqua)">
+          <p class="fs-title"><i></i>Income &amp; loan</p>
+          <div class="fields">
+            <label class="field">Applicant income<input name="ApplicantIncome" type="number" min="0" value="4583"></label>
+            <label class="field">Co-applicant income<input name="CoapplicantIncome" type="number" min="0" value="1508"></label>
+            <label class="field">Loan amount (thousands)<input name="LoanAmount" type="number" min="0" value="128"></label>
+            <label class="field">Loan term (months)<input name="Loan_Amount_Term" type="number" min="0" value="360"></label>
+          </div>
+        </div>
+        <div class="fieldset" style="--c: var(--pink)">
+          <p class="fs-title"><i></i>Credit &amp; property</p>
+          <div class="fields">
+            <div class="field">Credit history<div class="seg"><label><input type="radio" name="Credit_History" value="1" checked><span>Good (1)</span></label><label><input type="radio" name="Credit_History" value="0"><span>Poor (0)</span></label></div></div>
+            <div class="field">Property area<div class="seg"><label><input type="radio" name="Property_Area" value="Rural" checked><span>Rural</span></label><label><input type="radio" name="Property_Area" value="Semiurban"><span>Semi-urban</span></label><label><input type="radio" name="Property_Area" value="Urban"><span>Urban</span></label></div></div>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn" type="submit">Predict approval →</button>
+          <button class="btn secondary" type="button" id="reset">Reset</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="span-5">
+      <div class="card result-card">
+        <div class="result-top" id="r-top">
+          <div class="icon" id="r-icon">?</div>
+          <div class="kicker">Prediction</div>
+          <div class="verdict" id="r-verdict">Waiting…</div>
+        </div>
+        <div class="result-body">
+          <div class="gauge-wrap" id="gauge"></div>
+          <div id="r-extra"><div class="placeholder">Press <b>Predict approval</b> or pick an example applicant below.</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card span-7">
+      <div class="card-head"><div class="card-icon ic-aqua">☺</div><div><h2>Example applicants</h2><p class="desc">Real rows from the training data. Click one to predict it.</p></div></div>
+      <div class="examples" id="examples"><div class="empty">Loading…</div></div>
+    </section>
+
+    <section class="card span-5" style="align-self: start">
+      <div class="card-head"><div class="card-icon ic-amber">↺</div><div><h2>Your predictions</h2><p class="desc">This session only</p></div></div>
+      <ul class="history" id="history"><li class="empty">No predictions yet.</li></ul>
+    </section>
+  </div>
+  <footer>Predictions come from <code>POST /api/predict</code> · <a href="/">see model results</a></footer>
+</main>
+
+<script src="/assets/common.js"></script>
+<script>
+const form = $("form");
+const defaults = Object.fromEntries(new FormData(form));
+let lastScore = null;
+const history = [];
+
+/* Semicircle gauge from -2 to +2 with the margin (-1..1) shaded lighter */
+function drawGauge() {
+  const W = 280, H = 168, cx = W / 2, cy = 140, R = 112, w = 22;
+  const appr = css("--approved"), rej = css("--rejected"), ink = css("--ink"), muted = css("--muted"), surface = css("--surface");
+  const lo = -2, hi = 2;
+  const ang = v => Math.PI * (1 - (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo));   // π (left) → 0 (right)
+  const pt = (v, r) => [cx + r * Math.cos(ang(v)), cy - r * Math.sin(ang(v))];
+  const arc = (a, b, color, op) => {
+    const [x1, y1] = pt(a, R), [x2, y2] = pt(b, R);
+    return `<path d="M${x1} ${y1} A${R} ${R} 0 0 1 ${x2} ${y2}" fill="none" stroke="${color}" stroke-opacity="${op}" stroke-width="${w}"/>`;
+  };
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Gauge of the decision score from -2 to +2">`;
+  s += arc(-2, -1.02, rej, 1) + arc(-0.98, -0.01, rej, .45) + arc(0.01, 0.98, appr, .45) + arc(1.02, 2, appr, 1);
+  [-2, -1, 0, 1, 2].forEach(t => {
+    const [x, y] = pt(t, R + w / 2 + 12);
+    s += `<text x="${x}" y="${y + 4}" text-anchor="middle" font-size="11" fill="${muted}">${t > 0 ? "+" + t : t}</text>`;
+  });
+  const [mx, my] = pt(0, R - w / 2 - 4), [mx2, my2] = pt(0, R + w / 2 + 2);
+  s += `<line x1="${mx}" y1="${my}" x2="${mx2}" y2="${my2}" stroke="${surface}" stroke-width="3"/>`;
+  if (lastScore !== null) {
+    const [nx, ny] = pt(lastScore, R - 8);
+    s += `<line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="${ink}" stroke-width="4" stroke-linecap="round"/>`;
+    s += `<circle cx="${cx}" cy="${cy}" r="9" fill="${ink}"/>`;
+    s += `<text x="${cx}" y="${cy - 30}" text-anchor="middle" font-size="26" font-weight="800" fill="${ink}">${lastScore >= 0 ? "+" : ""}${lastScore.toFixed(2)}</text>`;
+    s += `<text x="${cx}" y="${cy - 12}" text-anchor="middle" font-size="11" fill="${muted}">decision score</text>`;
+  } else {
+    s += `<text x="${cx}" y="${cy - 16}" text-anchor="middle" font-size="13" fill="${muted}">decision score</text>`;
+  }
+  s += `<text x="${cx - R}" y="${cy + 24}" text-anchor="middle" font-size="11" font-weight="700" fill="${rej}">Reject</text>`;
+  s += `<text x="${cx + R}" y="${cy + 24}" text-anchor="middle" font-size="11" font-weight="700" fill="${appr}">Approve</text>`;
+  s += `</svg>`;
+  $("gauge").innerHTML = s;
+}
+
+function setForm(values) {
+  for (const [k, raw] of Object.entries(values)) {
+    let v = raw;
+    if (k === "Credit_History") v = String(Math.round(raw));
+    else if (typeof raw === "number") v = Math.round(raw);
+    const el = form.elements[k];
+    if (!el) continue;
+    if (el instanceof RadioNodeList) { for (const r of el) r.checked = r.value === String(v); }
+    else el.value = v;
+  }
+}
+
+function describe(a) {
+  return `${a.Gender}, ${a.Married === "Yes" ? "married" : "single"}, income ${Number(a.ApplicantIncome).toLocaleString()}, loan ${a.LoanAmount}k`;
+}
+
+function renderHistory() {
+  const ul = $("history");
+  if (!history.length) { ul.innerHTML = `<li class="empty">No predictions yet.</li>`; return; }
+  ul.innerHTML = history.slice(0, 8).map(h =>
+    `<li><span class="pill" style="background:${h.ok ? "var(--approved)" : "var(--rejected)"}">${h.ok ? "Approved" : "Rejected"}</span>` +
+    `<span class="desc2">${esc(h.text)}</span><span class="sc">${h.score >= 0 ? "+" : ""}${h.score.toFixed(2)}</span></li>`).join("");
+}
+
+async function predict() {
+  const applicant = Object.fromEntries(new FormData(form));
+  $("r-verdict").textContent = "Thinking…";
+  try {
+    const r = await fetch("/api/predict", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(applicant) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || r.status);
+    const ok = d.prediction === 1, s = d.decision_score, a = Math.abs(s);
+    lastScore = s;
+    $("r-top").className = "result-top " + (ok ? "approved" : "rejected");
+    $("r-icon").textContent = ok ? "✓" : "✗";
+    $("r-verdict").textContent = d.decision;
+    const lvl = a >= 1 ? 3 : a >= 0.5 ? 2 : 1;
+    const words = ["", "Borderline: very close to the boundary", "Fairly sure: inside the margin but leaning clearly", "Confident: outside the margin"];
+    $("r-extra").innerHTML =
+      `<div class="confidence" style="--c:${ok ? "var(--approved)" : "var(--rejected)"}">
+         <span class="conf-dots">${[1,2,3].map(i => `<i class="${i <= lvl ? "on" : ""}"></i>`).join("")}</span>
+         <span><span class="lvl">${["", "Low", "Medium", "High"][lvl]} confidence.</span> ${words[lvl]}.</span>
+       </div>`;
+    drawGauge();
+    history.unshift({ ok, score: s, text: describe(applicant) });
+    renderHistory();
+  } catch (err) {
+    $("r-top").className = "result-top";
+    $("r-icon").textContent = "!";
+    $("r-verdict").textContent = "Error";
+    $("r-extra").innerHTML = `<div class="err-text">${esc(err.message)}</div>`;
+  }
+}
+
+form.addEventListener("submit", e => { e.preventDefault(); predict(); });
+$("reset").addEventListener("click", () => {
+  setForm(defaults); lastScore = null; drawGauge();
+  $("r-top").className = "result-top"; $("r-icon").textContent = "?"; $("r-verdict").textContent = "Waiting…";
+  $("r-extra").innerHTML = `<div class="placeholder">Press <b>Predict approval</b> or pick an example applicant below.</div>`;
+});
+
+fetch("/api/samples")
+  .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+  .then(samples => {
+    setStatus(true, "Model ready");
+    const colors = ["var(--violet)", "var(--aqua)", "var(--pink)", "var(--amber)", "var(--approved)"];
+    const box = $("examples"); box.innerHTML = "";
+    samples.examples.forEach((ex, i) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "ex"; b.style.setProperty("--c", colors[i % colors.length]);
+      b.innerHTML = `<div class="ex-top"><span class="av">${i + 1}</span><div><div class="name">Applicant ${i + 1}</div>
+        <div class="meta">${esc(ex.Gender)} · ${ex.Married === "Yes" ? "Married" : "Single"} · ${esc(ex.Education)}</div></div></div>
+        <div class="money">Income <b>${Math.round(ex.ApplicantIncome + (ex.CoapplicantIncome || 0)).toLocaleString()}</b> · Loan <b>${Math.round(ex.LoanAmount)}k</b></div>
+        <div class="meta">${esc(ex.Property_Area)} · credit ${ex.Credit_History === 1 ? "good" : "poor"}</div>`;
+      b.addEventListener("click", () => { setForm(ex); predict(); scrollTo({ top: 0, behavior: "smooth" }); });
+      box.appendChild(b);
+    });
+  })
+  .catch(err => {
+    setStatus(false, "API offline");
+    $("examples").innerHTML = `<div class="err-text">Could not load examples (${esc(err.message)}). Is <code>python app.py</code> running?</div>`;
+  });
+
+drawGauge();
+themeListeners.push(drawGauge);
+</script>
+</body>
+</html>
